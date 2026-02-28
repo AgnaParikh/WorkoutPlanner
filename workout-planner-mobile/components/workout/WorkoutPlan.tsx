@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -17,20 +17,96 @@ type WorkoutPlanProps = {
 
 export function WorkoutPlan({ plan, workoutType, target, duration, onBack }: WorkoutPlanProps) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+  const [phase, setPhase] = useState<'work' | 'rest'>('work');
+  const [setIndex, setSetIndex] = useState(1);
   const exercises = plan.exercises ?? [];
   const activeExercise = exercises[activeIndex];
   const total = exercises.length;
+  const workSeconds = activeExercise?.time ?? 0;
+  const restSeconds = activeExercise?.restSec ?? 0;
+  const totalSets = activeExercise?.sets ?? 1;
+  const [timeRemaining, setTimeRemaining] = useState(workSeconds);
+
+  useEffect(() => {
+    setPhase('work');
+    setSetIndex(1);
+    setTimeRemaining(activeExercise?.time ?? 0);
+    setIsRunning(false);
+  }, [activeIndex, activeExercise?.time]);
+
+  useEffect(() => {
+    if (!isRunning || timeRemaining <= 0) return;
+    const timer = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isRunning, timeRemaining]);
+
+  useEffect(() => {
+    if (!isRunning || timeRemaining > 0) return;
+
+    if (phase === 'work') {
+      if (restSeconds > 0) {
+        setPhase('rest');
+        setTimeRemaining(restSeconds);
+        return;
+      }
+    }
+
+    if (phase === 'rest') {
+      if (setIndex < totalSets) {
+        setPhase('work');
+        setSetIndex((prev) => prev + 1);
+        setTimeRemaining(workSeconds);
+        return;
+      }
+    }
+
+    if (phase === 'work' && restSeconds === 0 && setIndex < totalSets) {
+      setSetIndex((prev) => prev + 1);
+      setTimeRemaining(workSeconds);
+      return;
+    }
+
+    if (activeIndex < total - 1) {
+      setActiveIndex((i) => i + 1);
+    } else {
+      setIsRunning(false);
+    }
+  }, [
+    timeRemaining,
+    isRunning,
+    phase,
+    restSeconds,
+    setIndex,
+    totalSets,
+    workSeconds,
+    activeIndex,
+    total,
+  ]);
 
   const handleSkip = () => {
     if (activeIndex < total - 1) setActiveIndex((i) => i + 1);
   };
 
   const handleRestart = () => {
-    // Placeholder: could reset timer for current exercise
+    const resetSeconds = phase === 'rest' ? restSeconds : workSeconds;
+    setTimeRemaining(resetSeconds);
   };
 
   const handlePlayPause = () => {
-    // Placeholder: start/pause timer
+    if (!activeExercise) return;
+    if (timeRemaining <= 0) {
+      const resetSeconds = phase === 'rest' ? restSeconds : workSeconds;
+      setTimeRemaining(resetSeconds);
+    }
+    setIsRunning((prev) => !prev);
   };
 
   return (
@@ -55,6 +131,11 @@ export function WorkoutPlan({ plan, workoutType, target, duration, onBack }: Wor
           exercise={activeExercise}
           index={activeIndex}
           total={total}
+          timeRemainingSec={timeRemaining}
+          isRunning={isRunning}
+          phase={phase}
+          setIndex={setIndex}
+          totalSets={totalSets}
           onPlayPause={handlePlayPause}
           onRestart={handleRestart}
           onSkip={handleSkip}

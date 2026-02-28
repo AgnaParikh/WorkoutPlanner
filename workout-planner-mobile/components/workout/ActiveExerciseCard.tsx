@@ -10,6 +10,11 @@ type ActiveExerciseCardProps = {
   exercise: Exercise;
   index: number;
   total: number;
+  timeRemainingSec: number;
+  isRunning: boolean;
+  phase: 'work' | 'rest';
+  setIndex: number;
+  totalSets: number;
   onPlayPause?: () => void;
   onRestart?: () => void;
   onSkip?: () => void;
@@ -19,11 +24,19 @@ export function ActiveExerciseCard({
   exercise,
   index,
   total,
+  timeRemainingSec,
+  isRunning,
+  phase,
+  setIndex,
+  totalSets,
   onPlayPause,
   onRestart,
   onSkip,
 }: ActiveExerciseCardProps) {
-  const timeDisplay = exercise.time != null ? `${exercise.time}s` : '—';
+  const minutes = Math.floor(timeRemainingSec / 60);
+  const seconds = timeRemainingSec % 60;
+  const timeDisplay = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  const phaseLabel = phase === 'rest' ? 'Rest' : 'Work';
 
   return (
     <ThemedView style={styles.card}>
@@ -31,16 +44,25 @@ export function ActiveExerciseCard({
       <ThemedText type="defaultSemiBold" style={styles.name}>
         {exercise.exerciseName}
       </ThemedText>
+      <ThemedText style={styles.setInfo}>
+        Set {setIndex} of {totalSets} · {phaseLabel}
+      </ThemedText>
       <View style={styles.timerBlock}>
-        <ThemedText style={styles.timerPlaceholder}>----:----</ThemedText>
-        <ThemedText style={styles.timerLabel}>Exercise Time</ThemedText>
+        <ThemedText style={styles.timerPlaceholder}>{timeDisplay}</ThemedText>
+        <ThemedText style={styles.timerLabel}>
+          {phase === 'rest' ? 'Rest Time' : 'Exercise Time'}
+        </ThemedText>
       </View>
       <View style={styles.controls}>
         <Pressable
           onPress={onPlayPause}
           style={({ pressed }) => [styles.controlMain, pressed && styles.pressed]}
         >
-          <IconSymbol name="play.fill" size={28} color={Design.primaryTextOnPrimary} />
+          <IconSymbol
+            name={isRunning ? 'pause.fill' : 'play.fill'}
+            size={28}
+            color={Design.primaryTextOnPrimary}
+          />
         </Pressable>
         <Pressable
           onPress={onRestart}
@@ -76,6 +98,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: Design.textPrimary,
     marginBottom: 16,
+  },
+  setInfo: {
+    fontSize: 14,
+    color: Design.textSecondary,
+    marginBottom: 10,
   },
   timerBlock: {
     alignItems: 'center',
